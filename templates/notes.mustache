@@ -43,7 +43,7 @@ h1, h2, h3, h4, h5, h6 {
     </header>
     <div class="nav-scroller py-1 mb-2">&nbsp;</div>
     <h1>{{ title }}</h1>
-    <p class="text-muted">{{ receiver }}</p>
+    <p class="text-muted">{{ receiver }} <span id="status" class="text-danger">(Not Paying)</span></p>
     <hr />
     <div>{{ &text }}</div>
   </div>
@@ -51,6 +51,11 @@ h1, h2, h3, h4, h5, h6 {
     window.addEventListener('load', function () {
       if (window.monetize) {
         window.monetize({ receiver: '{{ receiver }}' })
+          .then(() => {
+            var status = document.getElementById('status')
+            status.className = 'text-success'
+            status.innerHTML = '(Paying)'
+          })
       }
     })
   </script>
