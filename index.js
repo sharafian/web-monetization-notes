@@ -1,7 +1,7 @@
 const Koa = require('koa')
 const router = require('koa-router')()
-const parser = require('koa-bodyparser')()
 const app = new Koa()
+const parser = require('koa-bodyparser')()
 
 const WebMonetization = require('koa-web-monetization')
 const monetization = new WebMonetization()
@@ -19,7 +19,8 @@ const MAX_TEXT_SIZE = 512000
 
 router.get('/paid_by/:id', monetization.receiver())
 
-router.post('/paid_by/:id/notes', monetization.paid({ price: 100 }), async ctx => {
+router.post('/paid_by/:id/notes', /* monetization.paid({ price: 100 }) ,*/ async ctx => {
+  console.log('ctx.request.body', ctx.request, ctx.request.body, ctx.request.text)
   const body = ctx.request.body
   const note = {
     title: body.title,
@@ -40,10 +41,11 @@ router.post('/paid_by/:id/notes', monetization.paid({ price: 100 }), async ctx =
     return ctx.throw(400, 'text is too long. max ' + MAX_TEXT_SIZE + ' bytes.')
   }
 
+  console.log('putting note', note)
   await fs.mkdirp('./data')
   await fs.writeJson('./data/' + note.id + '.txt', note)
 
-  ctx.body = note
+  return ctx.redirect('/notes/' + note.id)
 })
 
 router.get('/notes/:id', async ctx => {
