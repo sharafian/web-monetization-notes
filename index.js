@@ -11,6 +11,7 @@ const path = require('path')
 const debug = require('debug')('web-monetization-notes')
 const uuid = require('uuid')
 const Mustache = require('mustache')
+const { markdown } = require('markdown')
 
 // TODO: should the max receiver size be in the PP spec?
 const MAX_RECEIVER_SIZE = 1024
@@ -55,7 +56,11 @@ router.get('/notes/:id', async ctx => {
     const template = await fs.readFile(path.resolve(__dirname, 'templates/notes.mustache'), 'utf8')
 
     ctx.set('Content-Type', 'text/html')
-    ctx.body = Mustache.render(template, note)
+    ctx.body = Mustache.render(template, {
+      title: note.title,
+      text: markdown.toHTML(note.text),
+      receiver: note.receiver
+    })
   } catch (e) {
     ctx.set('Content-Type', 'text/plain')
     return ctx.throw(404, 'Note with ID "' + ctx.params.id + '" not found.')
