@@ -10,6 +10,7 @@ const fs = require('fs-extra')
 const path = require('path')
 const debug = require('debug')('web-monetization-notes')
 const uuid = require('uuid')
+const Mustache = require('mustache')
 
 // TODO: should the max receiver size be in the PP spec?
 const MAX_RECEIVER_SIZE = 1024
@@ -49,7 +50,7 @@ router.get('/notes/:id', async ctx => {
   try {
     const safeId = ctx.params.id.replace(/[^0-9a-f\-]/g, '')
     const note = await fs.readJson('./data/' + safeId + '.txt')
-    const template = await fs.readFile(path.resolve(__dirname, 'templates/notes.moustache'), 'utf8')
+    const template = await fs.readFile(path.resolve(__dirname, 'templates/notes.mustache'), 'utf8')
 
     ctx.set('Content-Type', 'text/html')
     ctx.body = Mustache.render(template, note)
@@ -65,7 +66,7 @@ router.get('/client.js', async ctx => {
 })
 
 router.get('/', async ctx => {
-  const template = await fs.readFile(path.resolve(__dirname, 'templates/index.moustache'), 'utf8')
+  const template = await fs.readFile(path.resolve(__dirname, 'templates/index.mustache'), 'utf8')
   ctx.set('Content-Type', 'text/html')
   ctx.body = Mustache.render(template, {})
 })

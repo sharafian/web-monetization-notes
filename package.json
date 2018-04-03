@@ -15,6 +15,7 @@
     "koa-bodyparser": "^4.2.0",
     "koa-router": "^7.4.0",
     "koa-web-monetization": "^1.0.1",
+    "mustache": "^2.3.0",
     "uuid": "^3.2.1"
   }
 }
