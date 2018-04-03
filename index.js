@@ -17,10 +17,11 @@ const { markdown } = require('markdown')
 const MAX_RECEIVER_SIZE = 1024
 const MAX_TITLE_SIZE = 255
 const MAX_TEXT_SIZE = 512000
+let latestNotes = []
 
 router.get('/paid_by/:id', monetization.receiver())
 
-router.post('/paid_by/:id/notes', /* monetization.paid({ price: 100 }) ,*/ async ctx => {
+router.post('/paid_by/:id/notes', monetization.paid({ price: 100 }), async ctx => {
   console.log('ctx.request.body', ctx.request, ctx.request.body, ctx.request.text)
   const body = ctx.request.body
   const note = {
@@ -44,7 +45,12 @@ router.post('/paid_by/:id/notes', /* monetization.paid({ price: 100 }) ,*/ async
 
   console.log('putting note', note)
   await fs.mkdirp('./data')
-  await fs.writeJson('./data/' + note.id + '.txt', note)
+  await fs.writeJson('./data/' + note.id, note)
+
+  latestNotes.unshift(note)
+  if (latestNotes.length > 10) {
+    latestNotes.pop()
+  }
 
   return ctx.redirect('/notes/' + note.id)
 })
@@ -52,7 +58,7 @@ router.post('/paid_by/:id/notes', /* monetization.paid({ price: 100 }) ,*/ async
 router.get('/notes/:id', async ctx => {
   try {
     const safeId = ctx.params.id.replace(/[^0-9a-f\-]/g, '')
-    const note = await fs.readJson('./data/' + safeId + '.txt')
+    const note = await fs.readJson('./data/' + safeId)
     const template = await fs.readFile(path.resolve(__dirname, 'templates/notes.mustache'), 'utf8')
 
     ctx.set('Content-Type', 'text/html')
@@ -75,11 +81,43 @@ router.get('/client.js', async ctx => {
 router.get('/', async ctx => {
   const template = await fs.readFile(path.resolve(__dirname, 'templates/index.mustache'), 'utf8')
   ctx.set('Content-Type', 'text/html')
-  ctx.body = Mustache.render(template, {})
+
+  const postRows = []
+  for (let i = 0; i < latestNotes.length; ++i) {
+    if (i % 2 === 0) postRows.push([])
+    const note = latestNotes[i]
+    postRows[postRows.length - 1].push({
+      title: note.title,
+      text: note.text.slice(0, 255) + (note.text.length > 255 ? '...' : ''),
+      receiver: note.receiver,
+      id: note.id
+    })
+  }
+
+  ctx.body = Mustache.render(template, { postRows })
 })
 
-app
-  .use(parser)
-  .use(router.routes())
-  .use(router.allowedMethods())
-  .listen(process.env.PORT || 8080)
+async function run () {
+  await fs.mkdirp('./data')
+
+  const files = await fs.readdir('./data')
+  const stats = await Promise.all(files.map((f) => fs.stat(path.resolve('./data', f))))
+  const statMap = files.reduce((agg, f, i) => {
+    agg[f] = stats[i]
+    return agg
+  }, {})
+
+  files.sort((a, b) => statMap[a].mtime > statMap[b].mtime)
+  latestNotes = await Promise.all(files.slice(0, 10).map(f => fs.readJson(path.resolve('./data', f))))
+
+  app
+    .use(parser)
+    .use(router.routes())
+    .use(router.allowedMethods())
+    .listen(process.env.PORT || 8080)
+}
+
+run().catch(e => {
+  console.error(e)
+  process.exit(1)
+})
