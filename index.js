@@ -11,7 +11,16 @@ const path = require('path')
 const debug = require('debug')('web-monetization-notes')
 const uuid = require('uuid')
 const Mustache = require('mustache')
-const { markdown } = require('markdown')
+
+const highlight = require('highlight.js')
+const marked = require('marked')
+marked.setOptions({
+  renderer: new marked.Renderer(),
+  highlight: ((code) => highlight.highlightAuto(code).value),
+  gfm: true,
+  sanitize: true,
+  tables: true
+})
 
 // TODO: should the max receiver size be in the PP spec?
 const MAX_RECEIVER_SIZE = 1024
@@ -64,7 +73,7 @@ router.get('/notes/:id', async ctx => {
     ctx.set('Content-Type', 'text/html')
     ctx.body = Mustache.render(template, {
       title: note.title,
-      text: markdown.toHTML(note.text),
+      text: marked(note.text),
       receiver: note.receiver
     })
   } catch (e) {
@@ -107,7 +116,7 @@ async function run () {
     return agg
   }, {})
 
-  files.sort((a, b) => statMap[a].mtime > statMap[b].mtime)
+  files.sort((a, b) => statMap[a].mtime < statMap[b].mtime)
   latestNotes = await Promise.all(files.slice(0, 10).map(f => fs.readJson(path.resolve('./data', f))))
 
   app

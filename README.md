@@ -37,5 +37,6 @@ DEBUG=koa* node index.js
 ## TODOs and Features
 
 - [ ] Deploy live instance
+- [x] Syntax highlighting
 - [ ] Show how much money each post has made (or how many views)
 - [ ] Search?
