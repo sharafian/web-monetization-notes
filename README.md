@@ -5,6 +5,7 @@
 - [How to Run](#how-to-run)
   - [Prerequisites](#prerequisites)
   - [Install and Run](#install-and-run)
+- [TODOs and Features](#todos-and-features)
 
 ![screenshot](./screenshot.png)
 
@@ -32,3 +33,9 @@ cd web-monetization-notes
 npm install
 DEBUG=koa* node index.js
 ```
+
+## TODOs and Features
+
+- [ ] Deploy live instance
+- [ ] Show how much money each post has made (or how many views)
+- [ ] Search?
