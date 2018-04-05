@@ -3,8 +3,12 @@ const router = require('koa-router')()
 const app = new Koa()
 const parser = require('koa-bodyparser')()
 
+const WebSocket = require('ws')
+
+const IlpRedirect = require('ilp-spsp-redirect')
 const WebMonetization = require('koa-web-monetization')
 const monetization = new WebMonetization()
+const redirect = new IlpRedirect()
 
 const fs = require('fs-extra')
 const path = require('path')
@@ -29,6 +33,11 @@ const MAX_TEXT_SIZE = 512000
 let latestNotes = []
 
 router.get('/paid_by/:id', monetization.receiver())
+router.get('/pay_to/:receiver', async ctx => {
+  console.log('receiver:', ctx.params.receiver)
+  ctx.set('Content-Type', 'application/spsp+json')
+  ctx.body = redirect.response(ctx.params.receiver)
+})
 
 router.post('/paid_by/:id/notes', monetization.paid({ price: 100 }), async ctx => {
   console.log('ctx.request.body', ctx.request, ctx.request.body, ctx.request.text)
@@ -74,7 +83,8 @@ router.get('/notes/:id', async ctx => {
     ctx.body = Mustache.render(template, {
       title: note.title,
       text: marked(note.text),
-      receiver: note.receiver
+      receiver: note.receiver,
+      paid: Number(redirect.sent(note.receiver) / 1e6).toFixed(6) + ' XRP'
     })
   } catch (e) {
     ctx.set('Content-Type', 'text/plain')
@@ -119,11 +129,36 @@ async function run () {
   files.sort((a, b) => statMap[a].mtime < statMap[b].mtime)
   latestNotes = await Promise.all(files.slice(0, 10).map(f => fs.readJson(path.resolve('./data', f))))
 
-  app
+  await redirect.connect()
+
+  const server = app
     .use(parser)
     .use(router.routes())
     .use(router.allowedMethods())
     .listen(process.env.PORT || 8080)
+
+  const wss = new WebSocket.Server({ server })
+
+  wss.on('connection', ws => {
+    let receiver = false
+    function subscribe (balance) {
+      const formatted = Number(balance / 1e6).toFixed(6) + ' XRP'
+      ws.send(JSON.stringify({ balance: formatted }))
+    }
+
+    function unsubscribe () {
+      redirect.removeListener('receiver:' + receiver, subscribe)
+    }
+
+    ws.on('message', msg => {
+      if (receiver) return
+      receiver = JSON.parse(msg).receiver
+      redirect.on('receiver:' + receiver, subscribe)
+    })
+
+    ws.on('close', unsubscribe)
+    ws.on('error', unsubscribe)
+  })
 }
 
 run().catch(e => {

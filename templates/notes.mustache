@@ -45,20 +45,42 @@ h1, h2, h3, h4, h5, h6 {
       </div>
     </header>
     <div class="nav-scroller py-1 mb-2">&nbsp;</div>
-    <h1>{{ title }}</h1>
-    <p class="text-muted">{{ receiver }} <span id="status" class="text-danger">(Not Paying)</span></p>
+    <div class="text-muted flex-nowrap justify-content-between">
+      <h1 class="text-dark col-6">{{ title }}</h1>
+      <span class="col-2" id="receiver">{{ receiver }}</span>
+      <span class="col-2" id="paid">{{ paid }}</span>
+      <span id="status" class="col-2 text-danger"></span>
+    </div>
     <hr />
     <div>{{ &text }}</div>
   </div>
   <script>
     window.addEventListener('load', function () {
+      var status = document.getElementById('status')
+      var url = new URL(window.location)
+
       if (window.monetize) {
-        window.monetize({ receiver: '{{ receiver }}' })
+        window.monetize({ receiver: url.origin + '/pay_to/{{ receiver }}' })
           .then(() => {
-            var status = document.getElementById('status')
             status.className = 'text-success'
-            status.innerHTML = '(Paying)'
+            status.innerHTML = 'Paying'
           })
+          .catch(() => {
+            status.innerHTML = 'Not Paying'
+          })
+      } else {
+        status.innerHTML = 'Not Paying'
+      }
+
+      var socket = new WebSocket((url.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + url.host)
+
+      socket.onopen = function () {
+        socket.send(JSON.stringify({ receiver: '{{ receiver }}' }))
+      }
+
+      var paid = document.getElementById('paid')
+      socket.onmessage = function (msg) {
+        paid.innerHTML = JSON.parse(msg.data).balance
       }
     })
   </script>
